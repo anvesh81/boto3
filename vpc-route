@@ -1,0 +1,39 @@
+import boto3
+
+# Create an EC2 client
+ec2 = boto3.client('ec2')
+
+# Set the ID of the VPC and the IDs of the route tables to be updated
+vpc_id = 'YOUR_VPC_ID'
+route_table_ids = ['YOUR_ROUTE_TABLE_ID_1', 'YOUR_ROUTE_TABLE_ID_2']
+
+def replicate_routes(event, context):
+    """
+    Lambda function to replicate any route changes in a VPC to other route tables.
+    """
+    # Get the current routes for the VPC
+    response = ec2.describe_route_tables(Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])
+    current_routes = response['RouteTables'][0]['Routes']
+
+    # Update the routes for each route table
+    for route_table_id in route_table_ids:
+        # Get the current routes for the route table
+        response = ec2.describe_route_tables(RouteTableIds=[route_table_id])
+        current_route_table_routes = response['RouteTables'][0]['Routes']
+
+        # Check if there are any changes to be made
+        changes = False
+        for route in current_routes:
+            if route not in current_route_table_routes:
+                changes = True
+                break
+
+        # Update the routes if there are changes
+        if changes:
+            response = ec2.replace_route_table_association(
+                AssociationId=response['Associations'][0]['RouteTableAssociationId'],
+                RouteTableId=route_table_id
+            )
+            print(f"Updated routes for route table {route_table_id}")
+        else:
+            print(f"No changes needed for route table {route_table_id}")
