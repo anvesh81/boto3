@@ -19,3 +19,16 @@ done <<< "$instance_data"
 
 # Display a message to indicate that the output has been saved to the CSV file
 echo "Instance data has been saved to $csv_file"
+#######
+# Set password length
+$length = 16
+
+# Generate a random password
+$characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+"
+$password = -join ((Get-Random -InputObject $characters -Count $length))
+
+# Set new password for user account
+Set-ADAccountPassword -Identity "Username" -NewPassword (ConvertTo-SecureString -AsPlainText $password -Force)
+
+# Print the new password
+Write-Host "New password: $password"
