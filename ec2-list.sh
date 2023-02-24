@@ -1,34 +1,27 @@
 #!/bin/bash
 
-# Define the CSV file to store the output
-csv_file="ec2_instances.csv"
+# Set the list of IPs to check against
+IP_LIST=("10.0.0.1/32" "10.0.0.2/32" "10.0.0.3/32")
 
-# Define the header row for the CSV file
-header="Instance_ID,Instance_Name,Private_IP"
+# Get a list of all security group IDs
+SG_IDS=$(aws ec2 describe-security-groups --query 'SecurityGroups[].GroupId' --output text)
 
-# Write the header row to the CSV file
-echo $header > $csv_file
+# Loop through each security group
+for SG_ID in $SG_IDS
+do
+  # Get a list of inbound rules for the security group
+  INBOUND_RULES=$(aws ec2 describe-security-groups --group-id $SG_ID --query 'SecurityGroups[].IpPermissions[].IpRanges[].CidrIp' --output text)
 
-# Get the list of EC2 instances and their associated tags
-instance_data=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,Tags[?Key==`Name`].Value|[0],PrivateIpAddress]' --output text)
+  # Loop through each IP in the list
+  for IP in ${IP_LIST[@]}
+  do
+    # Check if the IP is in the list of inbound rules
+    if [[ " ${INBOUND_RULES[@]} " =~ " ${IP} " ]]; then
+      # Remove the inbound rule from the security group
+      aws ec2 revoke-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr $IP
 
-# Loop through the instance data and write it to the CSV file
-while read -r line; do
-  echo $line >> $csv_file
-done <<< "$instance_data"
-
-# Display a message to indicate that the output has been saved to the CSV file
-echo "Instance data has been saved to $csv_file"
-#######
-# Set password length
-$length = 16
-
-# Generate a random password
-$characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+"
-$password = -join ((Get-Random -InputObject $characters -Count $length))
-
-# Set new password for user account
-Set-ADAccountPassword -Identity "Username" -NewPassword (ConvertTo-SecureString -AsPlainText $password -Force)
-
-# Print the new password
-Write-Host "New password: $password"
+      # Print the security group ID
+      echo "Removed rule from Security Group: $SG_ID"
+    fi
+  done
+done
