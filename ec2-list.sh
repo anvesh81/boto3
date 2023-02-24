@@ -1,27 +1,25 @@
-#!/bin/bash
+import boto3
 
-# Set the list of IPs to check against
-IP_LIST=("10.0.0.1/32" "10.0.0.2/32" "10.0.0.3/32")
+def check_and_remove_security_group_rules():
+    # Create a boto3 client for EC2
+    ec2 = boto3.client('ec2')
 
-# Get a list of all security group IDs
-SG_IDS=$(aws ec2 describe-security-groups --query 'SecurityGroups[].GroupId' --output text)
+    # Define the IPs to look for
+    ips_to_check = ['172.25.200.13/32', '172.25.200.11/32']
 
-# Loop through each security group
-for SG_ID in $SG_IDS
-do
-  # Get a list of inbound rules for the security group
-  INBOUND_RULES=$(aws ec2 describe-security-groups --group-id $SG_ID --query 'SecurityGroups[].IpPermissions[].IpRanges[].CidrIp' --output text)
+    # Get all security groups
+    security_groups = ec2.describe_security_groups()
 
-  # Loop through each IP in the list
-  for IP in ${IP_LIST[@]}
-  do
-    # Check if the IP is in the list of inbound rules
-    if [[ " ${INBOUND_RULES[@]} " =~ " ${IP} " ]]; then
-      # Remove the inbound rule from the security group
-      aws ec2 revoke-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr $IP
-
-      # Print the security group ID
-      echo "Removed rule from Security Group: $SG_ID"
-    fi
-  done
-done
+    # Loop through all security groups
+    for group in security_groups['SecurityGroups']:
+        # Loop through all inbound rules
+        for rule in group['IpPermissions']:
+            # Check if the rule has the IPs we are looking for
+            if any(ip in rule['IpRanges'] for ip in ips_to_check):
+                # Remove the rule from the security group
+                ec2.revoke_security_group_ingress(
+                    GroupId=group['GroupId'],
+                    IpPermissions=[rule]
+                )
+                # Print the security group ID
+                print('Removed rule from security group:', group['GroupId'])
