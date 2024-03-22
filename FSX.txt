@@ -1,1 +1,2 @@
-aws fsx describe-file-systems --output json | jq -r '.FileSystems[] | [.FileSystemId, .DNSName // "", .FileSystemType, .CreationTime, .Lifecycle, .StorageCapacity, .Location.RegionName, .VpcId, (.SubnetIds | join(", "))] | @csv' > fsx_inventory.csv
+aws_account_id=$(aws sts get-caller-identity --output text --query 'Account')
+aws fsx describe-file-systems --output json | jq -r --arg aws_account_id "$aws_account_id" '["AWSAccountId", "FileSystemId", "DNSName", "FileSystemType", "CreationTime", "Lifecycle", "StorageCapacity", "Region", "VpcId", "SubnetIds"], (.FileSystems[] | [$aws_account_id, .FileSystemId, .DNSName // "", .FileSystemType, .CreationTime, .Lifecycle, .StorageCapacity, .Location.RegionName, .VpcId, (.SubnetIds | join(", "))]) | @csv' > fsx_inventory.csv
