@@ -1,0 +1,1 @@
+aws fsx describe-file-systems --output json | jq -r '.FileSystems[] | [.FileSystemId, .DNSName // "", .FileSystemType, .CreationTime, .Lifecycle, .StorageCapacity, .Location.RegionName, .VpcId, (.SubnetIds | join(", "))] | @csv' > fsx_inventory.csv
