@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create VPC Endpoints with associated Security Group, VPC, and Subnet parameters.
+
+Parameters:
+  VPCStage:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the VPC where the endpoints will be created.
+
+  SubnetStagePrivate:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The list of Subnet IDs where the endpoints will be created.
+
+  RouteTableStagePrivate:
+    Type: AWS::EC2::RouteTable::Id
+    Description: The ID of the Route Table associated with the private subnet.
+
+Resources:
+  VpcEpSecurityGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for VPC Endpoints
+      VpcId: !Ref VPCStage
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  EC2VPCEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: "Interface"
+      VpcId: !Ref VPCStage
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource: "*"
+      SubnetIds: !Ref SubnetStagePrivate
+      PrivateDnsEnabled: true
+      SecurityGroupIds: 
+        - !Ref VpcEpSecurityGrp
+
+  MGNVPCEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: "Interface"
+      VpcId: !Ref VPCStage
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.mgn"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource: "*"
+      SubnetIds: !Ref SubnetStagePrivate
+      PrivateDnsEnabled: true
+      SecurityGroupIds: 
+        - !Ref VpcEpSecurityGrp
+
+  S3VPCEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: "Interface"
+      VpcId: !Ref VPCStage
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource: "*"
+      SubnetIds: !Ref SubnetStagePrivate
+      PrivateDnsEnabled: false
+      SecurityGroupIds: 
+        - !Ref VpcEpSecurityGrp
+
+  S3GatewayEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      RouteTableIds:
+        - !Ref RouteTableStagePrivate
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPCStage
+
+  SSMVPCEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: "Interface"
+      VpcId: !Ref VPCStage
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource: "*"
+      SubnetIds: !Ref SubnetStagePrivate
+      PrivateDnsEnabled: true
+      SecurityGroupIds: 
+        - !Ref VpcEpSecurityGrp
+
+  SsmMsgVPCEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: "Interface"
+      VpcId: !Ref VPCStage
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource: "*"
+      SubnetIds: !Ref SubnetStagePrivate
+      PrivateDnsEnabled: true
+      SecurityGroupIds: 
+        - !Ref VpcEpSecurityGrp
