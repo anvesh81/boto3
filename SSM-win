@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Install Flexera tool on Windows and Linux instances from S3",
+  "mainSteps": [
+    {
+      "action": "aws:runPowerShellScript",
+      "name": "InstallFlexeraWindows",
+      "inputs": {
+        "runCommand": [
+          "Write-Host 'Starting Flexera installation on Windows'",
+          "Invoke-WebRequest -Uri 'https://your-bucket-name.s3.amazonaws.com/path/to/windows/installer.exe' -OutFile 'C:\\temp\\installer.exe'",
+          "Start-Process 'C:\\temp\\installer.exe' -ArgumentList '/silent' -Wait",
+          "Write-Host 'Flexera installation completed on Windows'"
+        ]
+      },
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      }
+    },
+    {
+      "action": "aws:runShellScript",
+      "name": "InstallFlexeraLinux",
+      "inputs": {
+        "runCommand": [
+          "echo 'Starting Flexera installation on Linux'",
+          "curl -o /tmp/installer.sh https://your-bucket-name.s3.amazonaws.com/path/to/linux/installer.sh",
+          "chmod +x /tmp/installer.sh",
+          "sudo /tmp/installer.sh --silent",
+          "echo 'Flexera installation completed on Linux'"
+        ]
+      },
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Linux"
+        ]
+      }
+    }
+  ]
+}
