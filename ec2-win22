@@ -18,10 +18,6 @@ Parameters:
       - r5.12xlarge
       - r5.24xlarge
 
-  SecurityGroups:
-    Description: List of security groups to associate with the EC2 instance.
-    Type: List<AWS::EC2::SecurityGroup::Id>
-
   SubnetId:
     Description: The subnet ID where the EC2 instance will be launched.
     Type: AWS::EC2::Subnet::Id
@@ -43,7 +39,35 @@ Parameters:
     Description: The environment for the application (e.g., Development, Testing, Production).
     Type: String
 
+  Backup:
+    Description: Whether to enable backups for the EC2 instance.
+    Type: String
+    Default: True
+    AllowedValues:
+      - True
+
 Resources:
+  EC2InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the EC2 instance
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 10.0.0.0/8
+        - IpProtocol: udp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 10.0.0.0/8
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Ref NameTag
+
   EC2InstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -73,7 +97,8 @@ Resources:
       InstanceType: !Ref InstanceType
       ImageId: !Ref AMIID
       IamInstanceProfile: !Ref EC2InstanceProfile
-      SecurityGroupIds: !Ref SecurityGroups
+      SecurityGroupIds:
+        - !Ref EC2InstanceSecurityGroup
       SubnetId: !Ref SubnetId
       Monitoring: true
       UserData:
@@ -108,7 +133,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
         - Key: Backup
-          Value: True
+          Value: !Ref Backup
 
   CWAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -135,4 +160,4 @@ Outputs:
     Description: The instance ID of the newly created EC2 instance
     Value: !Ref EC2Instance
     Export:
-      Name: EC2InstanceId
+      Name: !Sub "${AWS::StackName}-EC2InstanceId"
