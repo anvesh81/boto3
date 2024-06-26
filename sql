@@ -1,0 +1,218 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to deploy a Windows EC2 instance in a private subnet using an AMI, security groups, and VPC with auto recovery, detailed monitoring, CloudWatch & SSM Agents installed, and an IAM role with additional policies.
+
+Parameters:
+  AMIID:
+    Description: The AMI ID for the EC2 instance.
+    Type: String
+
+  InstanceType:
+    Description: EC2 instance type.
+    Type: String
+    Default: r5.large
+    AllowedValues:
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+      - r5.24xlarge
+
+  SubnetId:
+    Description: The subnet ID where the EC2 instance will be launched.
+    Type: AWS::EC2::Subnet::Id
+
+  VpcId:
+    Description: The VPC ID where the EC2 instance will be launched.
+    Type: AWS::EC2::VPC::Id
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+
+  NameTag:
+    Description: The name to tag the EC2 instance.
+    Type: String
+    Default: CFN-EC2-Instance
+
+  Application:
+    Description: The application name to tag the EC2 instance.
+    Type: String
+
+  Environment:
+    Description: The environment for the application (e.g., Development, Testing, Production).
+    Type: String
+
+  Backup:
+    Description: Whether to enable backups for the EC2 instance.
+    Type: String
+    Default: True
+    AllowedValues:
+      - True
+
+  VolumeSize1:
+    Description: Size of the first additional EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  VolumeSize2:
+    Description: Size of the second additional EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  VolumeSize3:
+    Description: Size of the third additional EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  VolumeSize4:
+    Description: Size of the fourth additional EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  VolumeSize5:
+    Description: Size of the fifth additional EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+Resources:
+  EC2InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the EC2 instance
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 10.0.0.0/8
+        - IpProtocol: udp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 10.0.0.0/8
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Ref NameTag
+
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "ec2.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMMaintenanceWindowRole
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonSSMPatchAssociation
+        - arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2InstanceRole
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AMIID
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SecurityGroupIds:
+        - !Ref EC2InstanceSecurityGroup
+      SubnetId: !Ref SubnetId
+      Monitoring: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp2
+        - DeviceName: /dev/sdf
+          Ebs:
+            VolumeSize: !Ref VolumeSize1
+            VolumeType: gp2
+        - DeviceName: /dev/sdg
+          Ebs:
+            VolumeSize: !Ref VolumeSize2
+            VolumeType: gp2
+        - DeviceName: /dev/sdh
+          Ebs:
+            VolumeSize: !Ref VolumeSize3
+            VolumeType: gp2
+        - DeviceName: /dev/sdi
+          Ebs:
+            VolumeSize: !Ref VolumeSize4
+            VolumeType: gp2
+        - DeviceName: /dev/sdj
+          Ebs:
+            VolumeSize: !Ref VolumeSize5
+            VolumeType: gp2
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+          Install-Module -Name AWS.Tools.Installer -Force
+          Install-Module -Name AWS.Tools.CloudWatch -Force
+          Install-Module -Name AWS.Tools.SSM -Force
+
+          # Install CloudWatch Agent
+          $CWAgentUrl = "https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi"
+          $CWAgentInstaller = "$env:TEMP\amazon-cloudwatch-agent.msi"
+          Invoke-WebRequest -Uri $CWAgentUrl -OutFile $CWAgentInstaller
+          Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $CWAgentInstaller /quiet" -NoNewWindow -Wait
+
+          # Install SSM Agent
+          $SSMUrl = "https://s3.amazonaws.com/amazon-ssm-us-east-1/latest/windows_amd64/AmazonSSMAgentSetup.exe"
+          $SSMInstaller = "$env:TEMP\AmazonSSMAgentSetup.exe"
+          Invoke-WebRequest -Uri $SSMUrl -OutFile $SSMInstaller
+          Start-Process -FilePath $SSMInstaller -ArgumentList "/quiet" -NoNewWindow -Wait
+
+          # Start the agents
+          Start-Service AmazonSSMAgent
+          Start-Service AmazonCloudWatchAgent
+          </powershell>
+      Tags:
+        - Key: Name
+          Value: !Ref NameTag
+        - Key: Application
+          Value: !Ref Application
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Backup
+          Value: !Ref Backup
+
+  CWAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-EC2RecoveryAlarm"
+      AlarmDescription: "Alarm to recover the EC2 instance if it becomes impaired"
+      Namespace: "AWS/EC2"
+      MetricName: "StatusCheckFailed_System"
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref EC2Instance
+      Statistic: "Minimum"
+      Period: "60"
+      EvaluationPeriods: "2"
+      Threshold: "1"
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+      InsufficientDataActions: []
+      OKActions: []
+
+Outputs:
+  InstanceId:
+    Description: The instance ID of the newly created EC2 instance
+    Value: !Ref EC2Instance
+    Export:
+      Name: !Sub "${AWS::StackName}-EC2InstanceId"
