@@ -75,11 +75,6 @@ Parameters:
     Type: Number
     Default: 50
 
-  VolumeSize6:
-    Description: Size of the sixth additional EBS volume in GiB.
-    Type: Number
-    Default: 50
-
 Resources:
   EC2InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -139,7 +134,7 @@ Resources:
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
-            VolumeSize: 30
+            VolumeSize: 100  # Updated to 100GB for the root volume
             VolumeType: gp2
         - DeviceName: /dev/sdf
           Ebs:
@@ -160,10 +155,6 @@ Resources:
         - DeviceName: /dev/sdj
           Ebs:
             VolumeSize: !Ref VolumeSize5
-            VolumeType: gp2
-        - DeviceName: /dev/sdk
-          Ebs:
-            VolumeSize: !Ref VolumeSize6
             VolumeType: gp2
       UserData:
         Fn::Base64: !Sub |
