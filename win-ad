@@ -1,0 +1,26 @@
+# Define variables
+$dns = "8.8.8.8","8.8.4.4"  # Replace with your DNS server addresses
+$computer = "NewServerName" # Replace with the desired computer name
+
+# Get the network adapter configuration
+$Interface = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
+
+# Register DNS for the computer
+Write-Host "$(Get-Date -format T): Registering DNS $dns for $computer" -ForegroundColor Green
+$Interface.SetDNSServerSearchOrder($dns)
+
+# Disable DNS automatic registration
+Write-Host "$(Get-Date -format T): Disabling DNS automatic registration for $computer" -ForegroundColor Green
+(Get-WmiObject Win32_NetworkAdapter -Filter "NetEnabled=True").GetRelated('Win32_NetworkAdapterConfiguration').SetDynamicDNSRegistration($false, $false)
+
+# Add AD DNS suffix to DNS search list
+Write-Host "$(Get-Date -format T): Adding AD DNS suffix to DNS search list" -ForegroundColor Green
+Set-DnsClientGlobalSetting -SuffixSearchList @("test.com", "testroot.com", "us-east-1.ec2-utilities.amazonaws.com", "ec2.internal")
+
+# Rename the computer
+Write-Host "$(Get-Date -format T): Renaming to $computer" -ForegroundColor Green
+Rename-Computer -NewName $computer
+
+# Restart the computer to apply changes
+Write-Host "$(Get-Date -format T): Restarting the computer to apply changes" -ForegroundColor Yellow
+Restart-Computer -Force
