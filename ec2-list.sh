@@ -1,25 +1,33 @@
-import boto3
+#!/bin/bash
 
-def check_and_remove_security_group_rules():
-    # Create a boto3 client for EC2
-    ec2 = boto3.client('ec2')
+# Check if VPC ID is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <VPC_ID>"
+    exit 1
+fi
 
-    # Define the IPs to look for
-    ips_to_check = ['172.25.200.13/32', '172.25.200.11/32']
+VPC_ID=$1
+output_file="ec2_instance_details.csv"
 
-    # Get all security groups
-    security_groups = ec2.describe_security_groups()
+# Write the CSV header
+echo "InstanceID,PrivateIP,InstanceType,InstanceName,VolumeSize" > "$output_file"
 
-    # Loop through all security groups
-    for group in security_groups['SecurityGroups']:
-        # Loop through all inbound rules
-        for rule in group['IpPermissions']:
-            # Check if the rule has the IPs we are looking for
-            if any(ip in rule['IpRanges'] for ip in ips_to_check):
-                # Remove the rule from the security group
-                ec2.revoke_security_group_ingress(
-                    GroupId=group['GroupId'],
-                    IpPermissions=[rule]
-                )
-                # Print the security group ID
-                print('Removed rule from security group:', group['GroupId'])
+# Get the list of EC2 instances in the specified VPC
+aws ec2 describe-instances --filters "Name=vpc-id,Values=$VPC_ID" --query "Reservations[].Instances[].[InstanceId, PrivateIpAddress, InstanceType, Tags[?Key=='Name'].Value | [0], BlockDeviceMappings[].Ebs.VolumeId]" --output json | jq -c '.[]' | while read -r instance; do
+    # Parse the JSON data for each instance
+    instance_id=$(echo "$instance" | jq -r '.[0]')
+    private_ip=$(echo "$instance" | jq -r '.[1]')
+    instance_type=$(echo "$instance" | jq -r '.[2]')
+    instance_name=$(echo "$instance" | jq -r '.[3]')
+    
+    # Get each EBS volume size attached to the instance
+    volume_id=$(echo "$instance" | jq -r '.[4]')
+
+    # Retrieve the EBS volume size
+    volume_size=$(aws ec2 describe-volumes --volume-ids "$volume_id" --query "Volumes[].Size" --output text)
+
+    # Append the data to the CSV file
+    echo "$instance_id,$private_ip,$instance_type,$instance_name,$volume_size" >> "$output_file"
+done
+
+echo "EC2 instance details for VPC $VPC_ID have been saved to $output_file"
