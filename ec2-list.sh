@@ -9,8 +9,8 @@ fi
 VPC_ID=$1
 output_file="ec2_instance_details.csv"
 
-# Write the CSV header
-echo "InstanceID,PrivateIP,InstanceType,InstanceName,VolumeSize" > "$output_file"
+# Write the CSV header with descriptive names
+echo "Instance ID,Private IP,Instance Type,Instance Name,EBS Volume Size (GB)" > "$output_file"
 
 # Get the list of EC2 instances in the specified VPC
 aws ec2 describe-instances --filters "Name=vpc-id,Values=$VPC_ID" --query "Reservations[].Instances[].[InstanceId, PrivateIpAddress, InstanceType, Tags[?Key=='Name'].Value | [0], BlockDeviceMappings[].Ebs.VolumeId]" --output json | jq -c '.[]' | while read -r instance; do
