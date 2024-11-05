@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Check if VPC ID is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <VPC_ID>"
+    exit 1
+fi
+
+VPC_ID=$1
+output_file="ebs_volume_details.csv"
+
+# Write the CSV header with descriptive names
+echo "Volume ID,Size (GB),Volume Type,Instance ID,Availability Zone" > "$output_file"
+
+# Get the list of EC2 instance IDs in the specified VPC
+instance_ids=$(aws ec2 describe-instances --filters "Name=vpc-id,Values=$VPC_ID" --query "Reservations[].Instances[].InstanceId" --output text)
+
+# Check if there are instances in the specified VPC
+if [ -z "$instance_ids" ]; then
+    echo "No instances found in VPC $VPC_ID."
+    exit 1
+fi
+
+# Get the list of EBS volumes attached to instances in the specified VPC
+aws ec2 describe-volumes --filters "Name=attachment.instance-id,Values=$instance_ids" --query "Volumes[].[VolumeId, Size, VolumeType, Attachments[0].InstanceId, AvailabilityZone]" --output json | jq -c '.[]' | while read -r volume; do
+    # Parse the JSON data for each volume
+    volume_id=$(echo "$volume" | jq -r '.[0]')
+    volume_size=$(echo "$volume" | jq -r '.[1]')
+    volume_type=$(echo "$volume" | jq -r '.[2]')
+    instance_id=$(echo "$volume" | jq -r '.[3] // "Unattached"') # Set to "Unattached" if no instance ID
+    availability_zone=$(echo "$volume" | jq -r '.[4]')
+
+    # Append the data to the CSV file
+    echo "$volume_id,$volume_size,$volume_type,$instance_id,$availability_zone" >> "$output_file"
+done
+
+echo "EBS volume details for VPC $VPC_ID have been saved to $output_file"
