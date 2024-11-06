@@ -21,17 +21,19 @@ if [ -z "$instance_ids" ]; then
     exit 1
 fi
 
-# Get the list of EBS volumes attached to instances in the specified VPC
-aws ec2 describe-volumes --filters "Name=attachment.instance-id,Values=$instance_ids" --query "Volumes[].[VolumeId, Size, VolumeType, Attachments[0].InstanceId, AvailabilityZone]" --output json | jq -c '.[]' | while read -r volume; do
-    # Parse the JSON data for each volume
-    volume_id=$(echo "$volume" | jq -r '.[0]')
-    volume_size=$(echo "$volume" | jq -r '.[1]')
-    volume_type=$(echo "$volume" | jq -r '.[2]')
-    instance_id=$(echo "$volume" | jq -r '.[3] // "Unattached"') # Set to "Unattached" if no instance ID
-    availability_zone=$(echo "$volume" | jq -r '.[4]')
+# Loop through each instance ID to get associated EBS volumes
+for instance_id in $instance_ids; do
+    aws ec2 describe-volumes --filters "Name=attachment.instance-id,Values=$instance_id" --query "Volumes[].[VolumeId, Size, VolumeType, Attachments[0].InstanceId, AvailabilityZone]" --output json | jq -c '.[]' | while read -r volume; do
+        # Parse the JSON data for each volume
+        volume_id=$(echo "$volume" | jq -r '.[0]')
+        volume_size=$(echo "$volume" | jq -r '.[1]')
+        volume_type=$(echo "$volume" | jq -r '.[2]')
+        instance_id=$(echo "$volume" | jq -r '.[3] // "Unattached"') # Set to "Unattached" if no instance ID
+        availability_zone=$(echo "$volume" | jq -r '.[4]')
 
-    # Append the data to the CSV file
-    echo "$volume_id,$volume_size,$volume_type,$instance_id,$availability_zone" >> "$output_file"
+        # Append the data to the CSV file
+        echo "$volume_id,$volume_size,$volume_type,$instance_id,$availability_zone" >> "$output_file"
+    done
 done
 
 echo "EBS volume details for VPC $VPC_ID have been saved to $output_file"
