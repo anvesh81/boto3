@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to deploy a Windows EC2 instance in a private subnet with 17 EBS volumes.
+Description: CloudFormation template to deploy a Windows EC2 instance in a private subnet with 10 EBS volumes.
 
 Parameters:
   AMIID:
@@ -47,11 +47,58 @@ Parameters:
     Description: Whether to enable backups for the EC2 instance.
     Type: String
     Default: True
+    AllowedValues:
+      - True
 
-  VolumeSizes:
-    Description: A comma-separated list of sizes for 12 additional EBS volumes in GiB.
-    Type: CommaDelimitedList
-    Default: "50,50,50,50,50,50,50,50,50,50,50,50"
+  Volume1:
+    Description: Size of the first EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume2:
+    Description: Size of the second EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume3:
+    Description: Size of the third EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume4:
+    Description: Size of the fourth EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume5:
+    Description: Size of the fifth EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume6:
+    Description: Size of the sixth EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume7:
+    Description: Size of the seventh EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume8:
+    Description: Size of the eighth EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume9:
+    Description: Size of the ninth EBS volume in GiB.
+    Type: Number
+    Default: 50
+
+  Volume10:
+    Description: Size of the tenth EBS volume in GiB.
+    Type: Number
+    Default: 50
 
 Resources:
   EC2InstanceSecurityGroup:
@@ -116,55 +163,43 @@ Resources:
             VolumeType: gp2
         - DeviceName: /dev/sdf
           Ebs:
-            VolumeSize: 50
+            VolumeSize: !Ref Volume1
             VolumeType: gp2
         - DeviceName: /dev/sdg
           Ebs:
-            VolumeSize: !Select [0, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume2
             VolumeType: gp2
         - DeviceName: /dev/sdh
           Ebs:
-            VolumeSize: !Select [1, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume3
             VolumeType: gp2
         - DeviceName: /dev/sdi
           Ebs:
-            VolumeSize: !Select [2, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume4
             VolumeType: gp2
         - DeviceName: /dev/sdj
           Ebs:
-            VolumeSize: !Select [3, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume5
             VolumeType: gp2
         - DeviceName: /dev/sdk
           Ebs:
-            VolumeSize: !Select [4, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume6
             VolumeType: gp2
         - DeviceName: /dev/sdl
           Ebs:
-            VolumeSize: !Select [5, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume7
             VolumeType: gp2
         - DeviceName: /dev/sdm
           Ebs:
-            VolumeSize: !Select [6, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume8
             VolumeType: gp2
         - DeviceName: /dev/sdn
           Ebs:
-            VolumeSize: !Select [7, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume9
             VolumeType: gp2
         - DeviceName: /dev/sdo
           Ebs:
-            VolumeSize: !Select [8, !Ref VolumeSizes]
-            VolumeType: gp2
-        - DeviceName: /dev/sdp
-          Ebs:
-            VolumeSize: !Select [9, !Ref VolumeSizes]
-            VolumeType: gp2
-        - DeviceName: /dev/sdq
-          Ebs:
-            VolumeSize: !Select [10, !Ref VolumeSizes]
-            VolumeType: gp2
-        - DeviceName: /dev/sdr
-          Ebs:
-            VolumeSize: !Select [11, !Ref VolumeSizes]
+            VolumeSize: !Ref Volume10
             VolumeType: gp2
       UserData:
         Fn::Base64: !Sub |
